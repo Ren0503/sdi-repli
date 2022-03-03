@@ -128,3 +128,59 @@ Ví dụ với N = 3
 
 ![](./assets/ack.png)
 
+W = 1 không có nghĩa là dữ liệu sẽ được ghi trên một server. Ví dụ, với cấu hình trên (hình 6-6), dữ liệu được sao chép ở s0, s1 và s2. W = 1 nghĩa là `coordinator` phải nhận ít nhất một ACK trước khi thực hiện thao tác ghi thành công. Ví dụ, nên ta nhận một ACK từ s1, ta không cần đợi ACK từ s0 và s2. `Coordinator` sẽ hành động như một proxy giữa client và nút.
+
+Cấu hình của W, R và N là sự cân bằng điển hình giữa độ trễ và tính nhất quán. Nếu W = 1 hoặc R = 1, thao tác được trả về nhanh chóng vì một coordinator chỉ cần đợi phản hồi từ bất kỳ bản sao nào. 
+
+Nếu W hoặc R > 1, hệ thống cung cấp tính nhất quán tốt hơn, tuy nhiên truy vấn sẽ chậm hơn vì coordinator phải đợi phản hồi từ một bản sao chậm nhất.
+
+Nếu W + R > N, tính nhất quán được đảm bảo mạnh mẽ vì phải có ít nhất một nút chồng chéo có dữ liệu mới nhất để đảm bảo tính nhất quán.
+
+Làm cách nào để cấu hình N, W và R phù hợp với trường hợp của ta? Ở đây ta có vài thiết lập khả thi:
+- Nếu R = 1 và W = N, hệ thống được tối ưu hoá cho việc đọc nhanh.
+- Nếu W = 1 và R = N, hệ thống được tối ưu hoá cho việc ghi nhanh.
+- Nếu W + R > N, tính nhất quán mạnh mẽ (thường N = 3, W = R = 2).
+- Nếu W + R <= N, tính nhất quán không mạnh mẽ.
+
+Tùy theo yêu cầu, chúng ta có thể điều chỉnh các giá trị W, R, N để đạt được mức độ nhất quán mong muốn.
+
+### Mô hình nhất quán
+
+Mô hình nhất quán là một nhân tố khác cần xem xét khi thiết kế một bộ lưu trữ key-value. Một mô hình nhất quán định nghĩa mức độ nhất quán của dữ liệu, và tồn tại nhiều mô hình nhất quán có thể có:
+- Tính nhất quán cao: bất kỳ thao tác đọc nào đều trả về một giá trị tương ứng với kết quả của mục dữ liệu ghi được cập nhật nhiều nhất. Client không bao giờ thấy dữ liệu lỗi thời/cũ.
+- Tính nhất quán yếu: các thao tác đọc tiếp theo có thể không thấy giá trị cập nhật gần nhất.
+- Tính nhất quán sau cùng: đây là một dạng cụ thể của tính nhất quán yếu. Cho đủ thời gian, tất cả các bản cập nhật sẽ được lan truyền và tất cả các bản sao đều nhất quán.
+
+Tính nhất quán cao thường đạt được bằng cách buộc một bản sao không chấp nhận các lần đọc/ghi mới cho đến khi mọi bản sao đã đồng ý về việc ghi hiện tại. Cách tiếp cận này không lý tưởng cho các hệ thống có tính khả dụng cao vì nó có thể chặn các hoạt động mới. Dynamo và Cassandra áp dụng tính nhất quán sau cùng, đây là mô hình nhất quán được đề xuất cho bộ lưu trữ key-value của chúng ta. Từ việc ghi đồng thời, tính nhất quán sau cùng cho phép các giá trị không nhất quán xâm nhập vào hệ thống và buộc client phải đọc các giá trị để đối chiếu. Phần tiếp theo giải thích cách điều chỉnh hoạt động với versioning.
+
+### Giải pháp không nhất quán: versioning
+
+Sao chép mang lại tính khả dụng cao nhưng gây ra sự không nhất quán giữa các bản sao. Versioning và khóa vectơ được sử dụng để giải quyết các vấn đề không nhất quán. Versioning có nghĩa là coi mỗi sửa đổi dữ liệu là một phiên bản dữ liệu bất biến mới. Trước khi nói về versioning, chúng ta hãy sử dụng một ví dụ để giải thích sự không nhất quán xảy ra như thế nào:
+
+Trong hình 6-7, cả hai nút bản sao n1 và n2 có cùng giá trị. Ta gọi giá trị này là giá trị gốc. Server 1 và server 2 nhận cùng giá trị cho thao tác *get("name")*.
+
+![](./assets/version1.png)
+
+Kế tiếp, server 1 thay đổi tên thành "johnSanFrancisco", và server2 đổi tên thành "johnNewYork" như hình 6-8. Hai thay đổi này được thực hiện đồng thời. Bây giờ, chúng ta có các giá trị xung đột được gọi là phiên bản v1 và v2.
+
+![](./assets/version2.png)
+
+Trong ví dụ này, giá trị ban đầu có thể bị bỏ qua vì các sửa đổi dựa trên giá trị đó. Tuy nhiên, không có cách nào rõ ràng để giải quyết xung đột của hai phiên bản cuối cùng. Để giải quyết vấn đề này, chúng ta cần một hệ thống tạo lập phiên bản có thể phát hiện xung đột và hòa giải xung đột. Vector clock là một kỹ thuật phổ biến để giải quyết vấn đề này. Bây giờ hãy kiểm tra cách hoạt động của vector clock.
+
+Một vector clock là một cặp [server, version] liên kết với một mục dữ liệu. Nó có thể dùng để kiểm tra nếu một phiên bản đi trước, thành công hoặc xung đột với phiên bản khác.
+
+Giả sử vector clock được biểu diễn bằng D([S1, v1], [S2, v2],…, [Sn, vn]), trong đó D là mục dữ liệu, v1 là bộ đếm phiên bản và s1 là số server,... Nếu mục dữ liệu D được ghi vào server Si, hệ thống phải thực hiện một trong các tác vụ sau.
+- Tăng vi nếu tồn tại [Si, vi].
+- Nếu không, hãy tạo một mục mới [Si, 1].
+
+Logic trừu tượng trên được giải thích bằng một ví dụ cụ thể như trong Hình 6-9.
+
+![](./assets/logic.png)
+
+1. Một client ghi một mục dữ liệu D1 vào hệ thống và việc ghi được xử lý bởi server Sx, hiện có vector clock D1[(Sx, 1)].
+2. Một client khác đọc D1 mới nhất, cập nhật nó lên D2 và viết nó trở lại. D2 đi xuống từ D1 nên nó ghi đè lên D1. Giả sử việc ghi được xử lý bởi cùng một server Sx, hiện có vector clock D2([Sx, 2]).
+3. Một client khác đọc D2 mới nhất, cập nhật nó lên D3 và viết nó trở lại. Giả sử việc ghi được xử lý bởi server Sy, hiện có vector clock D3([Sx, 2], [Sy, 1])).
+4. Một client khác đọc D2 mới nhất, cập nhật nó lên D4 và viết lại. Giả sử việc ghi được xử lý bởi server Sz, hiện có D4([Sx, 2], [Sz, 1])).
+5. Khi một client khác đọc D3 và D4, nó phát hiện ra xung đột, nguyên nhân là do mục dữ liệu D2 bị cả Sy và Sz sửa đổi. Xung đột được giải quyết bởi client và dữ liệu cập nhật được gửi đến server. Giả sử việc ghi được xử lý bởi Sx, bây giờ có
+D5([Sx, 3], [Sy, 1], [Sz, 1]). Chúng ta sẽ giải thích cách phát hiện xung đột ngay sau đây.
+
