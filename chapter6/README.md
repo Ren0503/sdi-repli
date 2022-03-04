@@ -118,7 +118,7 @@ Các nút trong cùng một trung tâm dữ liệu thường bị lỗi đồng 
 
 ### Tính nhất quán
 
-Vì dữ liệu được sao chép tại nhiều nút, nên nó phải được đồng bộ hóa giữa các bản sao. Số lượng đồng thuận tối thiểu có thể đảm bảo tính nhất quán cho cả hoạt động đọc và ghi. Trước tiên, hãy thiết lập một vài định nghĩa.
+Vì dữ liệu được sao chép tại nhiều nút, nên nó phải được đồng bộ hóa giữa các bản sao. Số lượng đồng thuận tối thiểu - quorum consensus có thể đảm bảo tính nhất quán cho cả hoạt động đọc và ghi. Trước tiên, hãy thiết lập một vài định nghĩa.
 
 - N = số lượng bản sao
 - W = Một đại diện ghi có kích thước W. Để một thao tác ghi được coi là thành công, thao tác ghi phải được thừa nhận từ các bản sao W.
@@ -192,11 +192,11 @@ Mặc dù vector clock có thể giải quyết xung đột, nhưng nó có hai 
 
 Thứ hai, các cặp *[server: version]* trong vector clock có thể phát triển nhanh chóng. Để khắc phục sự cố này, chúng ta đặt một ngưỡng cho độ dài và nếu nó vượt quá giới hạn, các cặp cũ nhất sẽ bị xóa. Điều này có thể dẫn đến sự thiếu hiệu quả trong việc giải quyết xung đột vì các mối quan hệ về sau không thể được xác định chính xác. Tuy nhiên, dựa trên Dynamo [4], Amazon vẫn chưa gặp phải vấn đề này trong thực tế. Do đó, nó có lẽ là một giải pháp được chấp nhận cho hầu hết các công ty.
 
-### Xử lý thất bại
+### Xử lý failure
 
-Khi một hệ thống lớn được mở rộng, thất bại là không thể tránh khỏi và nó còn rất phổ biến. Kịch bản cho xử lý thất bại là rất quan trọng, trong chương này ta sẽ giới thiệu kỹ thuật phát hiện thất bại và tìm giải pháp khác phục chung.
+Khi một hệ thống lớn được mở rộng, failure (sập hệ thống) là không thể tránh khỏi và nó còn rất phổ biến. Kịch bản cho xử lý failure là rất quan trọng, trong chương này ta sẽ giới thiệu kỹ thuật phát hiện failure và tìm giải pháp khác phục chung.
 
-#### Phát hiện thất bại
+#### Phát hiện failure
 
 Trong một hệ thống phân tán, không đủ để tin rằng một server không hoạt động vì một server khác nói như vậy. Thông thường, nó yêu cầu ít nhất hai nguồn thông tin độc lập để đánh dấu một server ngừng hoạt động.
 
@@ -204,7 +204,7 @@ Như thể hiện trong Hình 6-10, multicasting all-to-all là một giải ph�
 
 ![](./assets/failure.png)
 
-Một giải pháp tốt hơn là sử dụng các phương pháp phát hiện thất bại phi tập trung như giao thức Gossip.
+Một giải pháp tốt hơn là sử dụng các phương pháp phát hiện failure phi tập trung như giao thức Gossip.
 Giao thức Gossip hoạt động như sau:
 - Mỗi nút duy trì danh sách thành viên nút, chứa ID thành viên và bộ đếm heartbeat.
 - Mỗi nút tăng định kỳ để tăng bộ đếm heartbeat của nó.
@@ -219,31 +219,33 @@ Như hình 6-11:
 - Nút s0 thông báo với bộ đếm heartbeat của nút s2 (ID = 2) đã không tăng lên trong một thời gian dài.
 - Nút s0 gửi heartbeat bao gồm thông tin s2 cho một tập hợp nút ngẫu nhiên. Sau khi các nút khác xác nhận heartbeat của nút s2 đã không được cập nhật trong thời gian dài, s2 được đánh dấu là sập, và thông tin được lan truyền cho các nút khác.
 
-#### Xử lý thất bại tạm thời
+#### Xử lý failure tạm thời
 
-Sau khi các lỗi được phát hiện thông qua giao thức Gossip, hệ thống cần triển khai các cơ chế nhất định để đảm bảo tính khả dụng. Trong phương pháp tiếp cận tối thiểu nghiêm ngặt, các thao tác đọc và ghi có thể bị chặn như được minh họa trong phần số lượng đồng thuận tối thiểu.
+Sau khi các failure được phát hiện thông qua giao thức Gossip, hệ thống cần triển khai các cơ chế nhất định để đảm bảo tính khả dụng. Trong phương pháp tiếp cận strict quorum (tối thiểu nghiêm ngặt), các thao tác đọc và ghi có thể bị chặn như được minh họa trong phần số lượng đồng thuận tối thiểu.
 
-Một kỹ thuật được gọi là "sloppy quorum" [4] được sử dụng để cải thiện tính khả dụng. Thay vì thực thi yêu cầu số đại biểu, hệ thống chọn server W khỏe mạnh đầu tiên để ghi và server R khỏe mạnh đầu tiên để đọc trên vòng băm. Server ngoại tuyến bị bỏ qua.
+Một kỹ thuật được gọi là "sloppy quorum" [4] được sử dụng để cải thiện tính khả dụng. Thay vì thực thi yêu cầu tối thiểu, hệ thống chọn server W khỏe mạnh đầu tiên để ghi và server R khỏe mạnh đầu tiên để đọc trên vòng băm. Server ngoại tuyến bị bỏ qua.
 
-Nếu một server không khả dụng do lỗi mạng hoặc sập, một server khác sẽ tạm thời xử lý các yêu cầu. Khi server hoạt động trở lại, các thay đổi sẽ được đẩy lùi để đạt được tính nhất quán của dữ liệu. Quá trình này được gọi là chuyển giao gợi ý. Vì s2 không có trong Hình 6-12 nên việc đọc và ghi sẽ do s3 tạm thời xử lý. Khi s2 trực tuyến trở lại, s3 sẽ giao lại dữ liệu cho s2.
+Nếu một server không khả dụng do lỗi mạng hoặc sập, một server khác sẽ tạm thời xử lý các yêu cầu. Khi server hoạt động trở lại, các thay đổi sẽ được đẩy lùi để đạt được tính nhất quán của dữ liệu. Quá trình này được gọi là hinted handoff. Vì s2 không có trong Hình 6-12 nên việc đọc và ghi sẽ do s3 tạm thời xử lý. Khi s2 trực tuyến trở lại, s3 sẽ giao lại dữ liệu cho s2.
 
 ![](./assets/handling.png)
 
-#### Xử lý các lỗi vĩnh viễn
+#### Xử lý failure vĩnh viễn
 
-Xử lý gợi ý được sử dụng để xử lý các lỗi tạm thời. Điều gì sẽ xảy ra nếu một bản sao vĩnh viễn không có sẵn? Để xử lý tình huống như vậy, chúng tôi triển khai một giao thức chống entropy để giữ cho các bản sao được đồng bộ hóa. Anti-entropy liên quan đến việc so sánh từng phần dữ liệu trên các bản sao và cập nhật từng bản sao lên phiên bản mới nhất. Cây Merkle được sử dụng để phát hiện sự không nhất quán và giảm thiểu lượng dữ liệu được truyền.
+Hinted handoff được sử dụng để xử lý failure tạm thời. Điều gì sẽ xảy ra nếu một bản sao vĩnh viễn không có sẵn? Để xử lý tình huống như vậy, chúng ta triển khai một giao thức anti-entropy để giữ cho các bản sao được đồng bộ hóa. Anti-entropy liên quan đến việc so sánh từng phần dữ liệu trên các bản sao và cập nhật từng bản sao lên phiên bản mới nhất. Cây Merkle được sử dụng để phát hiện sự không nhất quán và giảm thiểu lượng dữ liệu được truyền.
 
-Trích dẫn từ Wikipedia [7]: "Cây băm hay cây Merkle là một cây trong đó mọi nút không phải là lá được gắn nhãn bằng băm của các nhãn hoặc giá trị (trong trường hợp là lá) của các nút con của nó. Cây băm cho phép xác minh hiệu quả và an toàn nội dung của cấu trúc dữ liệu lớn". Giả sử không gian chính là từ 1 đến 12, các bước sau đây trình bày cách xây dựng cây Merkle. Các hộp được đánh dấu cho biết sự không nhất quán.
+Trích dẫn từ Wikipedia [7]: 
 
-Bước 1: Chia không gian khóa thành các nhóm (trong ví dụ của chúng ta là 4) như trong Hình 6-13. Một thùng được sử dụng làm nút cấp gốc để duy trì độ sâu giới hạn của cây.
+> "Cây băm hay cây Merkle là một cây trong đó mọi nút không phải là lá được gắn nhãn bằng băm của các nhãn hoặc giá trị (trong trường hợp là lá) của các nút con của nó. Cây băm cho phép xác minh hiệu quả và an toàn nội dung của cấu trúc dữ liệu lớn". Giả sử không gian chính là từ 1 đến 12, các bước sau đây trình bày cách xây dựng cây Merkle. Các hộp được đánh dấu cho biết sự không nhất quán.
+
+Bước 1: Chia không gian khóa thành các bucket (trong ví dụ của chúng ta là 4) như trong hình 6-13. Một bucket được sử dụng làm nút gốc để duy trì độ sâu giới hạn của cây.
 
 ![](./assets/step1.png)
 
-Bước 2: Sau khi các nhóm được tạo, hãy băm từng khóa trong một nhóm bằng phương pháp băm thống nhất (Hình 6-14).
+Bước 2: Sau khi các bucket được tạo, hãy băm từng khóa trong một bucket bằng phương pháp băm thống nhất (Hình 6-14).
 
 ![](./assets/step2.png)
 
-Bước 3: Tạo một nút băm duy nhất cho mỗi nhóm (Hình 6-15).
+Bước 3: Tạo một nút băm duy nhất cho mỗi bucket (Hình 6-15).
 
 ![](./assets/step3.png)
 
@@ -251,10 +253,10 @@ Bước 4: Xây dựng cây hướng lên phía trên cho đến gốc bằng c�
 
 ![](./assets/step4.png)
 
-Để so sánh hai cây Merkle, hãy bắt đầu bằng cách so sánh các hàm băm gốc. Nếu hàm băm gốc khớp nhau, cả hai máy chủ đều có cùng dữ liệu. Nếu các hàm băm gốc không đồng ý, thì các hàm băm con bên trái được so sánh với các hàm băm con bên phải. Bạn có thể đi ngang qua cây để tìm nhóm nào không được đồng bộ hóa và chỉ đồng bộ hóa các nhóm đó.
+Để so sánh hai cây Merkle, hãy bắt đầu bằng cách so sánh các hàm băm gốc. Nếu hàm băm gốc khớp nhau, cả hai server đều có cùng dữ liệu. Nếu các hàm băm gốc không khớp, thì các hàm băm con bên trái được so sánh với các hàm băm con bên phải. Bạn có thể đi ngang qua cây để tìm bucket nào không được đồng bộ hóa và chỉ đồng bộ hóa các bucket đó.
  
-Sử dụng cây Merkle, lượng dữ liệu cần được đồng bộ hóa tỷ lệ thuận với sự khác biệt giữa hai bản sao chứ không phải lượng dữ liệu mà chúng chứa. Trong các hệ thống thế giới thực, kích thước thùng khá lớn. Ví dụ: một cấu hình có thể là một triệu
-nhóm trên một tỷ khóa, vì vậy mỗi nhóm chỉ chứa 1000 khóa.
+Sử dụng cây Merkle, lượng dữ liệu cần được đồng bộ hóa tỷ lệ thuận với sự khác biệt giữa hai bản sao chứ không phải lượng dữ liệu mà chúng chứa. Trong các hệ thống thế giới thực, kích thước bucket khá lớn. Ví dụ: một cấu hình có thể là một triệu
+bucket trên một tỷ khóa, vì vậy mỗi bucket sẽ chứa 1000 khóa.
 
 #### Xử lý sự cố trung tâm dữ liệu.
 
@@ -262,13 +264,13 @@ Trung tâm dữ liệu ngừng hoạt động có thể xảy ra do mất điệ
 
 ### Sơ đồ kiến trúc hệ thống
 
-Bây giờ chúng ta đã thảo luận về các cân nhắc kỹ thuật khác nhau trong việc thiết kế cửa hàng khóa-giá trị, chúng ta có thể chuyển trọng tâm sang sơ đồ kiến trúc, được thể hiện trong Hình 6-17.
+Bây giờ chúng ta đã thảo luận về các cân nhắc kỹ thuật khác nhau trong việc thiết kế bộ lưu trữ key-value, chúng ta có thể chuyển trọng tâm sang sơ đồ kiến trúc, được thể hiện trong Hình 6-17.
 
 ![](./assets/architecture.png)
 
 Các đặc điểm chính của kiến trúc được liệt kê như sau:
-* Khách hàng giao tiếp với kho khóa-giá trị thông qua các API đơn giản: nhận (khóa) và đặt (khóa, giá trị).
-* Bộ điều phối là một nút hoạt động như một proxy giữa máy khách và kho khóa-giá trị.
+* Client giao tiếp với bộ lưu trữ key-value thông qua các API đơn giản: get(key) và put(key, value).
+* Bộ điều phối là một nút hoạt động như một proxy giữa client và bộ lưu trữ key-value.
 * Các nút được phân phối trên một vòng bằng cách sử dụng băm nhất quán.
 * Hệ thống hoàn toàn phi tập trung nên việc thêm và di chuyển các nút có thể tự động.
 * Dữ liệu được sao chép tại nhiều nút.
@@ -280,21 +282,21 @@ Khi thiết kế được phân cấp, mỗi nút thực hiện nhiều nhiệm 
 
 ### Write path
 
-Hình 6-19 giải thích những gì xảy ra sau khi một yêu cầu ghi được chuyển hướng đến một nút cụ thể. Xin lưu ý rằng các thiết kế được đề xuất cho các đường dẫn ghi / đọc là chính dựa trên kiến trúc của Cassandra [8].
+Hình 6-19 giải thích những gì xảy ra sau khi một yêu cầu ghi được chuyển hướng đến một nút cụ thể. Xin lưu ý rằng các thiết kế được đề xuất cho các đường dẫn ghi/đọc chủ yếu dựa trên kiến trúc của Cassandra [8].
 
 ![](./assets/write.png)
 
-1. Yêu cầu ghi vẫn tồn tại trên tệp nhật ký cam kết.
+1. Yêu cầu ghi vẫn tồn tại trên file commit log.
 2. Dữ liệu được lưu trong bộ nhớ đệm.
-3. Khi bộ nhớ đệm đầy hoặc đạt đến ngưỡng xác định trước, dữ liệu sẽ được chuyển vào SSTable [9] trên đĩa. Lưu ý: Bảng chuỗi đã sắp xếp (SSTable) là danh sách các cặp `<key, value>` đã được sắp xếp. Để bạn đọc muốn tìm hiểu thêm về SStable, có thể tham khảo tài liệu tham khảo [9].
+3. Khi bộ nhớ đệm đầy hoặc đạt đến ngưỡng xác định trước, dữ liệu sẽ được chuyển vào SSTable [9] trên đĩa. Lưu ý: Bảng chuỗi đã sắp xếp (SSTable) là danh sách các cặp `<key, value>` đã được sắp xếp. Bạn đọc muốn tìm hiểu thêm về SStable, có thể tham khảo tài liệu tham khảo [9].
 
 ### Read path
 
-Sau khi một yêu cầu đọc được chuyển hướng đến một nút cụ thể, trước tiên nó sẽ kiểm tra xem dữ liệu có trong bộ nhớ đệm của bộ nhớ hay không. Nếu vậy, dữ liệu được trả lại cho máy khách như trong Hình 6-20.
+Sau khi một yêu cầu đọc được chuyển hướng đến một nút cụ thể, trước tiên nó sẽ kiểm tra xem dữ liệu có trong bộ nhớ đệm của bộ nhớ hay không. Nếu vậy, dữ liệu được trả lại cho client như trong Hình 6-20.
 
 ![](./assets/read1.png)
 
-Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất từ đĩa thay thế. Chúng tôi cần một cách hiệu quả để tìm ra SSTable nào chứa khóa. Bộ lọc Bloom [10] thường được sử dụng để giải quyết vấn đề này.
+Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất từ đĩa thay thế. Chúng ta cần một cách hiệu quả để tìm ra SSTable nào chứa khóa. Bộ lọc Bloom [10] thường được sử dụng để giải quyết vấn đề này.
 Đường dẫn đọc được thể hiện trong Hình 6-21 khi dữ liệu không có trong bộ nhớ.
 
 ![](./assets/read2.png)
@@ -303,11 +305,43 @@ Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất t�
 2. Nếu dữ liệu không có trong bộ nhớ, hệ thống sẽ kiểm tra bộ lọc bloom.
 3. Bộ lọc bloom được sử dụng để tìm ra các SSTables nào có thể chứa khóa.
 4. SSTables trả về kết quả của tập dữ liệu.
-5. Kết quả của tập dữ liệu được trả lại cho máy khách.
+5. Kết quả của tập dữ liệu được trả lại cho client.
 
 ## 4. Tổng kết
 
 Chương này bao gồm nhiều khái niệm và kỹ thuật. Để làm mới bộ nhớ của bạn, bảng sau đây tóm tắt các tính năng và kỹ thuật tương ứng được sử dụng cho một kho lưu trữ khóa-giá trị phân tán.
 
-![](./assets/goal.png)
+| Mục tiêu/Vấn đề | Kỹ thuật |
+|-|-|
+| Khả năng lưu trữ dữ liệu lớn | Sử dụng băm nhất quán để trải đều tải qua nhiều server |
+| Khả năng đọc cao | Sao chép dữ liệu. Thiết lập đa trung tâm dữ liệu |
+| Khả năng viết cao | Versioning và xử lý xung đột với vector clocks |
+| Phân vùng tập dữ liệu | Băm nhất quán |
+| Khả năng mở rộng tăng dần | Băm nhất quán |
+| Tính bất đồng nhất | Băm nhất quán |
+| Điều chính tính nhất quán | Đồng thuận tối thiểu |
+| Xử lý failure tạm thời | Sloppy quorum và hinted handoff |
+| Xử lý failure vĩnh viễn | Cây markle |
+| Xử lý sự cố trung tâm dữ liệu | Sao chép trên nhiều trung tâm dữ liệu |
 
+# Tham khảo
+
+[1] Amazon DynamoDB: https://aws.amazon.com/dynamodb/
+
+[2] memcached: https://memcached.org/
+
+[3] Redis: https://redis.io/
+
+[4] Dynamo: Amazon’s Highly Available Key-value Store: https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf
+
+[5] Cassandra: https://cassandra.apache.org/
+
+[6] Bigtable: A Distributed Storage System for Structured Data: https://static.googleusercontent.com/media/research.google.com/en//archive/bigtableosdi06.pdf
+
+[7] Merkle tree: https://en.wikipedia.org/wiki/Merkle_tree
+
+[8] Cassandra architecture: https://cassandra.apache.org/doc/latest/architecture/
+
+[9] SStable: https://www.igvita.com/2012/02/06/sstable-and-log-structured-storage-leveldb/
+
+[10] Bloom filter https://en.wikipedia.org/wiki/Bloom_filter
