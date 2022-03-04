@@ -223,5 +223,91 @@ Như hình 6-11:
 
 Sau khi các lỗi được phát hiện thông qua giao thức Gossip, hệ thống cần triển khai các cơ chế nhất định để đảm bảo tính khả dụng. Trong phương pháp tiếp cận tối thiểu nghiêm ngặt, các thao tác đọc và ghi có thể bị chặn như được minh họa trong phần số lượng đồng thuận tối thiểu.
 
-Một kỹ thuật được gọi là "sloppy quorum" [4] được sử dụng để cải thiện tính khả dụng. Thay vì thực thi yêu cầu số đại biểu, hệ thống chọn máy chủ W khỏe mạnh đầu tiên để ghi và máy chủ R khỏe mạnh đầu tiên để đọc trên vòng băm. Máy chủ ngoại tuyến bị bỏ qua.
-Nếu một máy chủ không khả dụng do lỗi mạng hoặc máy chủ, một máy chủ khác sẽ tạm thời xử lý các yêu cầu. Khi máy chủ hoạt động lên, các thay đổi sẽ được đẩy lùi để đạt được tính nhất quán của dữ liệu. Quá trình này được gọi là chuyển giao gợi ý. Vì s2 không có trong Hình 6-12 nên việc đọc và ghi sẽ do s3 tạm thời xử lý. Khi s2 trực tuyến trở lại, s3 sẽ giao lại dữ liệu cho s2.
+Một kỹ thuật được gọi là "sloppy quorum" [4] được sử dụng để cải thiện tính khả dụng. Thay vì thực thi yêu cầu số đại biểu, hệ thống chọn server W khỏe mạnh đầu tiên để ghi và server R khỏe mạnh đầu tiên để đọc trên vòng băm. Server ngoại tuyến bị bỏ qua.
+
+Nếu một server không khả dụng do lỗi mạng hoặc sập, một server khác sẽ tạm thời xử lý các yêu cầu. Khi server hoạt động trở lại, các thay đổi sẽ được đẩy lùi để đạt được tính nhất quán của dữ liệu. Quá trình này được gọi là chuyển giao gợi ý. Vì s2 không có trong Hình 6-12 nên việc đọc và ghi sẽ do s3 tạm thời xử lý. Khi s2 trực tuyến trở lại, s3 sẽ giao lại dữ liệu cho s2.
+
+![](./assets/handling.png)
+
+#### Xử lý các lỗi vĩnh viễn
+
+Xử lý gợi ý được sử dụng để xử lý các lỗi tạm thời. Điều gì sẽ xảy ra nếu một bản sao vĩnh viễn không có sẵn? Để xử lý tình huống như vậy, chúng tôi triển khai một giao thức chống entropy để giữ cho các bản sao được đồng bộ hóa. Anti-entropy liên quan đến việc so sánh từng phần dữ liệu trên các bản sao và cập nhật từng bản sao lên phiên bản mới nhất. Cây Merkle được sử dụng để phát hiện sự không nhất quán và giảm thiểu lượng dữ liệu được truyền.
+
+Trích dẫn từ Wikipedia [7]: "Cây băm hay cây Merkle là một cây trong đó mọi nút không phải là lá được gắn nhãn bằng băm của các nhãn hoặc giá trị (trong trường hợp là lá) của các nút con của nó. Cây băm cho phép xác minh hiệu quả và an toàn nội dung của cấu trúc dữ liệu lớn". Giả sử không gian chính là từ 1 đến 12, các bước sau đây trình bày cách xây dựng cây Merkle. Các hộp được đánh dấu cho biết sự không nhất quán.
+
+Bước 1: Chia không gian khóa thành các nhóm (trong ví dụ của chúng ta là 4) như trong Hình 6-13. Một thùng được sử dụng làm nút cấp gốc để duy trì độ sâu giới hạn của cây.
+
+![](./assets/step1.png)
+
+Bước 2: Sau khi các nhóm được tạo, hãy băm từng khóa trong một nhóm bằng phương pháp băm thống nhất (Hình 6-14).
+
+![](./assets/step2.png)
+
+Bước 3: Tạo một nút băm duy nhất cho mỗi nhóm (Hình 6-15).
+
+![](./assets/step3.png)
+
+Bước 4: Xây dựng cây hướng lên phía trên cho đến gốc bằng cách tính số băm con (Hình 6-16).
+
+![](./assets/step4.png)
+
+Để so sánh hai cây Merkle, hãy bắt đầu bằng cách so sánh các hàm băm gốc. Nếu hàm băm gốc khớp nhau, cả hai máy chủ đều có cùng dữ liệu. Nếu các hàm băm gốc không đồng ý, thì các hàm băm con bên trái được so sánh với các hàm băm con bên phải. Bạn có thể đi ngang qua cây để tìm nhóm nào không được đồng bộ hóa và chỉ đồng bộ hóa các nhóm đó.
+ 
+Sử dụng cây Merkle, lượng dữ liệu cần được đồng bộ hóa tỷ lệ thuận với sự khác biệt giữa hai bản sao chứ không phải lượng dữ liệu mà chúng chứa. Trong các hệ thống thế giới thực, kích thước thùng khá lớn. Ví dụ: một cấu hình có thể là một triệu
+nhóm trên một tỷ khóa, vì vậy mỗi nhóm chỉ chứa 1000 khóa.
+
+#### Xử lý sự cố trung tâm dữ liệu.
+
+Trung tâm dữ liệu ngừng hoạt động có thể xảy ra do mất điện, mất mạng, thiên tai, ... Để xây dựng một hệ thống có khả năng xử lý sự cố trung tâm dữ liệu, điều quan trọng là phải nhân rộng dữ liệu trên nhiều trung tâm dữ liệu. Ngay cả khi một trung tâm dữ liệu hoàn toàn ngoại tuyến, người dùng vẫn có thể truy cập dữ liệu thông qua các trung tâm dữ liệu khác.
+
+### Sơ đồ kiến trúc hệ thống
+
+Bây giờ chúng ta đã thảo luận về các cân nhắc kỹ thuật khác nhau trong việc thiết kế cửa hàng khóa-giá trị, chúng ta có thể chuyển trọng tâm sang sơ đồ kiến trúc, được thể hiện trong Hình 6-17.
+
+![](./assets/architecture.png)
+
+Các đặc điểm chính của kiến trúc được liệt kê như sau:
+* Khách hàng giao tiếp với kho khóa-giá trị thông qua các API đơn giản: nhận (khóa) và đặt (khóa, giá trị).
+* Bộ điều phối là một nút hoạt động như một proxy giữa máy khách và kho khóa-giá trị.
+* Các nút được phân phối trên một vòng bằng cách sử dụng băm nhất quán.
+* Hệ thống hoàn toàn phi tập trung nên việc thêm và di chuyển các nút có thể tự động.
+* Dữ liệu được sao chép tại nhiều nút.
+* Không có điểm lỗi nào vì mọi nút đều có cùng một bộ trách nhiệm.
+
+Khi thiết kế được phân cấp, mỗi nút thực hiện nhiều nhiệm vụ như được trình bày trong Hình 6-18.
+
+![](./assets/node.png)
+
+### Write path
+
+Hình 6-19 giải thích những gì xảy ra sau khi một yêu cầu ghi được chuyển hướng đến một nút cụ thể. Xin lưu ý rằng các thiết kế được đề xuất cho các đường dẫn ghi / đọc là chính dựa trên kiến trúc của Cassandra [8].
+
+![](./assets/write.png)
+
+1. Yêu cầu ghi vẫn tồn tại trên tệp nhật ký cam kết.
+2. Dữ liệu được lưu trong bộ nhớ đệm.
+3. Khi bộ nhớ đệm đầy hoặc đạt đến ngưỡng xác định trước, dữ liệu sẽ được chuyển vào SSTable [9] trên đĩa. Lưu ý: Bảng chuỗi đã sắp xếp (SSTable) là danh sách các cặp `<key, value>` đã được sắp xếp. Để bạn đọc muốn tìm hiểu thêm về SStable, có thể tham khảo tài liệu tham khảo [9].
+
+### Read path
+
+Sau khi một yêu cầu đọc được chuyển hướng đến một nút cụ thể, trước tiên nó sẽ kiểm tra xem dữ liệu có trong bộ nhớ đệm của bộ nhớ hay không. Nếu vậy, dữ liệu được trả lại cho máy khách như trong Hình 6-20.
+
+![](./assets/read1.png)
+
+Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất từ đĩa thay thế. Chúng tôi cần một cách hiệu quả để tìm ra SSTable nào chứa khóa. Bộ lọc Bloom [10] thường được sử dụng để giải quyết vấn đề này.
+Đường dẫn đọc được thể hiện trong Hình 6-21 khi dữ liệu không có trong bộ nhớ.
+
+![](./assets/read2.png)
+
+1. Trước tiên, hệ thống sẽ kiểm tra xem dữ liệu có trong bộ nhớ hay không. Nếu không, hãy chuyển sang bước 2.
+2. Nếu dữ liệu không có trong bộ nhớ, hệ thống sẽ kiểm tra bộ lọc bloom.
+3. Bộ lọc bloom được sử dụng để tìm ra các SSTables nào có thể chứa khóa.
+4. SSTables trả về kết quả của tập dữ liệu.
+5. Kết quả của tập dữ liệu được trả lại cho máy khách.
+
+## 4. Tổng kết
+
+Chương này bao gồm nhiều khái niệm và kỹ thuật. Để làm mới bộ nhớ của bạn, bảng sau đây tóm tắt các tính năng và kỹ thuật tương ứng được sử dụng cho một kho lưu trữ khóa-giá trị phân tán.
+
+![](./assets/goal.png)
+
