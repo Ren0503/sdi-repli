@@ -34,17 +34,17 @@ Phát triển bộ lưu trữ key-value nằm trong một server duy nhất khá
 
 ### Bộ lưu trữ key-value phân tán
 
-Một bộ lưu trữ key-value phân tán còn gọi là một bảng băm phân tán, nó phân tán các cặp key-value qua nhiều server. Khi thiết kế một hế thống phân tán, điều quan trọng là cần hiểu được định lý CAP.
+Một bộ lưu trữ key-value phân tán còn gọi là một bảng băm phân tán, nó phân tán các cặp key-value qua nhiều server. Khi thiết kế một hệ thống phân tán, điều quan trọng là cần hiểu được định lý CAP.
 
 #### Định lý CAP
 
-Định lý CAP nói rằng không thể có hệ thống phân tán nào đồng thời cung cấp nhiều hơn hai trong ba tiêu chuẩn sau: tính nhất quán, tính khả dụng và dung sai phân vùng. Bây giờ ta sẽ đi thiết lập một vài định nghĩa.
+Định lý CAP nói rằng không thể có hệ thống phân tán nào đồng thời cung cấp nhiều hơn hai trong ba tiêu chuẩn sau: tính nhất quán, tính khả dụng và dung sai phân vùng. Bây giờ ta sẽ đi tìm hiểu các định nghĩa này.
 
 - **Consistency:** tính nhất quán nghĩa là tất cả client xem cùng một dữ liệu tại cùng thời điểm bất kể họ kết nối với nút nào.
 - **Availability:** tính khả dụng nghĩa là bất kỳ client nào yêu cầu dữ liệu cũng nhận về phản hồi kể cả khi một vài nút bị sập.
-- **Partition Tolerance:** dung sai phân vùng biểu thị giao tiếp giữa các nút. Nó có nghĩa là hệ thống tiếp tục hoạt động bất chấp các phân vùng mạng.
+- **Partition Tolerance:** dung sai phân vùng biểu thị giao tiếp giữa các nút. Nó có nghĩa là hệ thống tiếp tục hoạt động bất chấp một số lượng tùy ý các thông điệp đang bị rớt (hoặc trì hoãn) bởi mạng giữa các nút.
 
-Định lý CAP nói rằng phải hy sinh một trong ba thuộc tính phải để hỗ trợ 2 thuộc tính còn lại, Hình 6-1.
+Định lý CAP nói rằng phải hy sinh một trong ba thuộc tính trên để hỗ trợ 2 thuộc tính còn lại, Hình 6-1.
 
 ![](./assets/cap.png)
 
@@ -65,11 +65,11 @@ Trong thế giới lý tưởng, phân vùng mạng không bao giờ xảy ra. D
 
 #### Hệ thống phân tán thế giới thực
 
-Trong hệ thống phân tán, không thể tránh khỏi phân vùng mạng, và khi phân vùng xảy ra, chúng ta phải lựa chọn giữa tính nhất quán và tính khả dụng. Trong hình 6-3, n3 đi xuống và không thể giao tiếp với n1 và n2. Nếu client ghi dữ liệu vào n1 hoặc n2, dữ liệu không thể được truyền tới n3. Nếu dữ liệu được ghi vào n3 nhưng chưa được truyền tới n1 và n2, n1 và n2 sẽ có dữ liệu cũ.
+Trong hệ thống phân tán, không thể tránh khỏi phân vùng mạng, và khi phân vùng xảy ra, chúng ta phải lựa chọn giữa tính nhất quán và tính khả dụng. Trong hình 6-3, n3 đi xuống và không thể giao tiếp với n1 và n2. Nếu client ghi dữ liệu vào n1 hoặc n2, dữ liệu không thể được truyền tới n3. Nếu dữ liệu được ghi vào n3 nhưng chưa được truyền tới n1 và n2, thì n1 và n2 sẽ chứa dữ liệu cũ.
 
 ![](./assets/system.png)
 
-Nếu chúng ta chọn tính nhất quán so với tính khả dụng (hệ thống CP), chúng ta phải chặn tất cả các thao tác ghi vào n1 và n2 để tránh sự mâu thuẫn dữ liệu giữa ba server này, khiến hệ thống không khả dụng. Hệ thống ngân hàng thường có yêu cầu nhất quán rất cao. Ví dụ: điều quan trọng đối với hệ thống ngân hàng là hiển thị thông tin số dư cập nhật gần nhất. Nếu sự không nhất quán xảy ra do phân vùng mạng, hệ thống ngân hàng sẽ trả về lỗi trước khi sự không nhất quán được giải quyết.
+Nếu chúng ta chọn tính nhất quán so với tính khả dụng (hệ thống CP), chúng ta phải chặn tất cả các thao tác ghi vào n1 và n2 để tránh sự mâu thuẫn dữ liệu giữa ba server này, khiến hệ thống không khả dụng. Hệ thống ngân hàng thường có yêu cầu nhất quán rất cao. Ví dụ như một điều quan trọng đối với hệ thống ngân hàng là hiển thị thông tin chính xác số dư cập nhật gần nhất. Nếu sự không nhất quán xảy ra do phân vùng mạng, hệ thống ngân hàng sẽ trả về lỗi trước khi sự không nhất quán được giải quyết.
 
 Tuy nhiên, nếu chúng ta chọn tính khả dụng hơn tính nhất quán (hệ thống AP), hệ thống sẽ tiếp tục chấp nhận các lần đọc, mặc dù nó có thể trả về dữ liệu cũ. Để ghi, n1 và n2 sẽ tiếp tục chấp nhận ghi và dữ liệu sẽ được đồng bộ hóa với n3 khi phân vùng mạng được giải quyết.
 
@@ -84,16 +84,17 @@ Tuy nhiên, nếu chúng ta chọn tính khả dụng hơn tính nhất quán (h
 * Giải pháp không nhất quán
 * Xử lý thất bại
 * Sơ đồ kiến trúc hệ thống
-* Thao tác đọc
-* Thao tác ghi
+* Đường dẫn đọc
+* Đường dẫn ghi
 
 Nội dung bên dưới chủ yếu dựa trên các hệ thống bộ lưu trữ key-value phổ biến: Dynamo [4], Cassandra [5] và BigTable [6].
 
 ### Phân vùng dữ liệu
 
-Đối với các ứng dụng lớn, không thể đặt vừa một tập dữ liệu hoàn chỉnh trong một server đơn. Cách đơn giản nhất để thực hiện điều này là chia dữ liệu thành các phân vùng nhỏ hơn và lưu trữ chúng trong nhiều server. Có hai thách thức khi phân vùng dữ liệu:
+Đối với các ứng dụng lớn, không thể đặt vừa một tập dữ liệu hoàn chỉnh trong một server đơn. Cách đơn giản nhất để giải quyết điều này là chia dữ liệu thành các phân vùng nhỏ hơn và lưu trữ chúng trong nhiều server. Có hai thách thức khi phân vùng dữ liệu:
 * Phân phối đồng đều dữ liệu trên nhiều server.
 * Giảm thiểu sự di chuyển dữ liệu khi các nút được thêm vào hoặc loại bỏ.
+
 Phép băm nhất quán được thảo luận trong chương 5 là một kỹ thuật tuyệt vời để giải quyết những vấn đề này. Bây giờ chúng ta sẽ xem lại cách hoạt động của băm nhất quán ở high-level.
 - Đầu tiên, các server được đặt trên một vòng băm. Trong hình 6-4, tám server, được đại diện bởi s0, s1,…, s7, được đặt trên vòng băm.
 - Tiếp theo, một khóa được băm vào cùng một vòng và nó được lưu trữ trên server đầu tiên mà nó gặp phải khi di chuyển theo chiều kim đồng hồ. Ví dụ, key0 được lưu trữ trong s1 bằng cách sử dụng logic này.
@@ -118,7 +119,7 @@ Các nút trong cùng một trung tâm dữ liệu thường bị lỗi đồng 
 
 ### Tính nhất quán
 
-Vì dữ liệu được sao chép tại nhiều nút, nên nó phải được đồng bộ hóa giữa các bản sao. Số lượng đồng thuận tối thiểu - quorum consensus có thể đảm bảo tính nhất quán cho cả hoạt động đọc và ghi. Trước tiên, hãy thiết lập một vài định nghĩa.
+Vì dữ liệu được sao chép tại nhiều nút, nên nó phải được đồng bộ hóa giữa các bản sao. Số lượng đồng thuận tối thiểu - quorum consensus, có thể đảm bảo tính nhất quán cho cả hoạt động đọc và ghi. Trước tiên, hãy thiết lập một vài định nghĩa.
 
 - N = số lượng bản sao
 - W = Một đại diện ghi có kích thước W. Để một thao tác ghi được coi là thành công, thao tác ghi phải được thừa nhận từ các bản sao W.
@@ -147,9 +148,9 @@ Tùy theo yêu cầu, chúng ta có thể điều chỉnh các giá trị W, R, 
 ### Mô hình nhất quán
 
 Mô hình nhất quán là một nhân tố khác cần xem xét khi thiết kế một bộ lưu trữ key-value. Một mô hình nhất quán định nghĩa mức độ nhất quán của dữ liệu, và tồn tại nhiều mô hình nhất quán có thể có:
-- Tính nhất quán cao: bất kỳ thao tác đọc nào đều trả về một giá trị tương ứng với kết quả của mục dữ liệu ghi được cập nhật gần nhất. Client không bao giờ thấy dữ liệu lỗi thời/cũ.
-- Tính nhất quán yếu: các thao tác đọc tiếp theo có thể không thấy giá trị cập nhật gần nhất.
-- Tính nhất quán sau cùng: đây là một dạng cụ thể của tính nhất quán yếu. Cho đủ thời gian, tất cả các bản cập nhật sẽ được lan truyền và tất cả các bản sao đều nhất quán.
+- **Tính nhất quán cao (strong consistency):** bất kỳ thao tác đọc nào đều trả về một giá trị tương ứng với kết quả của mục dữ liệu ghi được cập nhật gần nhất. Client không bao giờ thấy dữ liệu lỗi thời/cũ.
+- **Tính nhất quán yếu (weak consistency):** các thao tác đọc tiếp theo có thể không thấy giá trị cập nhật gần nhất.
+- **Tính nhất quán sau cùng (eventual consistency):** đây là một dạng cụ thể của tính nhất quán yếu. Cho đủ thời gian, tất cả các bản cập nhật sẽ được lan truyền và tất cả các bản sao đều nhất quán.
 
 Tính nhất quán cao thường đạt được bằng cách buộc một bản sao không chấp nhận các lần đọc/ghi mới cho đến khi mọi bản sao đã đồng ý về việc ghi hiện tại. Cách tiếp cận này không lý tưởng cho các hệ thống có tính khả dụng cao vì nó có thể chặn các hoạt động mới. Dynamo và Cassandra áp dụng tính nhất quán sau cùng, đây là mô hình nhất quán được đề xuất cho bộ lưu trữ key-value của chúng ta. Từ việc ghi đồng thời, tính nhất quán sau cùng cho phép các giá trị không nhất quán xâm nhập vào hệ thống và buộc client phải đọc các giá trị để đối chiếu. Phần tiếp theo giải thích cách điều chỉnh hoạt động với versioning.
 
@@ -184,9 +185,9 @@ Logic trừu tượng trên được giải thích bằng một ví dụ cụ th
 5. Khi một client khác đọc D3 và D4, nó phát hiện ra xung đột, nguyên nhân là do mục dữ liệu D2 bị cả Sy và Sz sửa đổi. Xung đột được giải quyết bởi client và dữ liệu cập nhật được gửi đến server. Giả sử việc ghi được xử lý bởi Sx, bây giờ có
 `D5([Sx, 3], [Sy, 1], [Sz, 1])`. Chúng ta sẽ giải thích cách phát hiện xung đột ngay sau đây.
 
-Sử dụng vector clock, thật dễ dàng để nói rằng một phiên bản X là một tổ tiên (tức là không có xung đột) của phiên bản Y nếu các bộ đếm phiên bản(vi) cho mỗi thành phần tham gia trong vector clock của Y lớn hơn hoặc bằng với X. Ví dụ, vector clock `D([s0, 1], [s1, 1])]` là tổ tiên của `D([s0, 1], [s1, 2])`. Do đó, không có xung đột được ghi lại.
+Bằng cách dùng vector clock, thật dễ dàng để nói rằng một phiên bản X là một tổ tiên (tức là không có xung đột) của phiên bản Y nếu các bộ đếm phiên bản(vi) cho mỗi thành phần tham gia trong vector clock của Y lớn hơn hoặc bằng với X. Ví dụ, vector clock `D([s0, 1], [s1, 1])]` là tổ tiên của `D([s0, 1], [s1, 2])`. Do đó, không có xung đột được ghi lại.
 
-Tương tự, bạn có thể nói rằng một phiên bản X là anh chị em (tức là có tồn tại xung đột) của Y nếu có bất kỳ thành phần tham gia nào trong vector clock của Y có bộ đếm nhỏ hơn hoặc bằng so với X. Ví dụ: hai sau vector clock cho biết có xung đột: `D([S0, 1], [S1, 2])` và `D([S0, 2], [S1, 1])`.
+Tương tự, bạn có thể nói rằng một phiên bản X là anh chị em (tức là có tồn tại xung đột) của Y nếu có bất kỳ thành phần tham gia nào trong vector clock của Y có bộ đếm nhỏ hơn bộ đếm tương ứng của X. Ví dụ: hai vector clock sau cho biết có xung đột: `D([S0, 1], [S1, 2])` và `D([S0, 2], [S1, 1])`.
 
 Mặc dù vector clock có thể giải quyết xung đột, nhưng nó có hai nhược điểm đáng chú ý. Đầu tiên, vector clock thêm độ phức tạp cho client vì nó cần thực hiện logic giải quyết xung đột.
 
@@ -210,7 +211,7 @@ Giao thức Gossip hoạt động như sau:
 - Mỗi nút tăng định kỳ để tăng bộ đếm heartbeat của nó.
 - Mỗi nút định kỳ gửi heartbeat đến một tập hợp các nút ngẫu nhiên, lần lượt truyền sang một tập nút khác.
 - Khi các nút nhận được heartbeat, danh sách thành viên được cập nhật lên thông tin mới nhất.
-- Nếu heartbeat không tăng lên so với các giai đoạn đã xác định trước, thành viên được coi là ngoại tuyến.
+- Nếu heartbeat không tăng lên so với các giai đoạn đã xác định trước, thành viên đó được coi là ngoại tuyến.
 
 ![](./assets/map.png)
 
@@ -235,7 +236,9 @@ Hinted handoff được sử dụng để xử lý failure tạm thời. Điều
 
 Trích dẫn từ Wikipedia [7]: 
 
-> "Cây băm hay cây Merkle là một cây trong đó mọi nút không phải là lá được gắn nhãn bằng băm của các nhãn hoặc giá trị (trong trường hợp là lá) của các nút con của nó. Cây băm cho phép xác minh hiệu quả và an toàn nội dung của cấu trúc dữ liệu lớn". Giả sử không gian chính là từ 1 đến 12, các bước sau đây trình bày cách xây dựng cây Merkle. Các hộp được đánh dấu cho biết sự không nhất quán.
+> "Cây băm hay cây Merkle là một cây trong đó mọi nút (lá) được gắn nhãn bằng cách băm mật mã của khối dữ liệu và mọi nút không phải là lá (nhánh, nút chứa các nút khác bên trong) được gắn nhãn bằng cách băm mật mã nhãn của các nút con của nó. Cây băm cho phép xác minh hiệu quả và an toàn nội dung của cấu trúc dữ liệu lớn"
+
+Giả sử không gian khoá là từ 1 đến 12, các bước sau đây trình bày cách xây dựng cây Merkle. Highlight màu đỏ cho biết sự không nhất quán.
 
 Bước 1: Chia không gian khóa thành các bucket (trong ví dụ của chúng ta là 4) như trong hình 6-13. Một bucket được sử dụng làm nút gốc để duy trì độ sâu giới hạn của cây.
 
@@ -264,13 +267,13 @@ Trung tâm dữ liệu ngừng hoạt động có thể xảy ra do mất điệ
 
 ### Sơ đồ kiến trúc hệ thống
 
-Bây giờ chúng ta đã thảo luận về các cân nhắc kỹ thuật khác nhau trong việc thiết kế bộ lưu trữ key-value, chúng ta có thể chuyển trọng tâm sang sơ đồ kiến trúc, được thể hiện trong Hình 6-17.
+Nãy giờ chúng ta đã thảo luận về các cân nhắc kỹ thuật khác nhau trong việc thiết kế bộ lưu trữ key-value, bây giờ chúng ta có thể chuyển trọng tâm sang sơ đồ kiến trúc, được thể hiện trong Hình 6-17.
 
 ![](./assets/architecture.png)
 
 Các đặc điểm chính của kiến trúc được liệt kê như sau:
 * Client giao tiếp với bộ lưu trữ key-value thông qua các API đơn giản: get(key) và put(key, value).
-* Bộ điều phối là một nút hoạt động như một proxy giữa client và bộ lưu trữ key-value.
+* Coordinator là một nút hoạt động như một proxy giữa client và bộ lưu trữ key-value.
 * Các nút được phân phối trên một vòng bằng cách sử dụng băm nhất quán.
 * Hệ thống hoàn toàn phi tập trung nên việc thêm và di chuyển các nút có thể tự động.
 * Dữ liệu được sao chép tại nhiều nút.
@@ -292,11 +295,11 @@ Hình 6-19 giải thích những gì xảy ra sau khi một yêu cầu ghi đư�
 
 ### Read path
 
-Sau khi một yêu cầu đọc được chuyển hướng đến một nút cụ thể, trước tiên nó sẽ kiểm tra xem dữ liệu có trong bộ nhớ đệm của bộ nhớ hay không. Nếu vậy, dữ liệu được trả lại cho client như trong Hình 6-20.
+Sau khi một yêu cầu đọc được chuyển hướng đến một nút cụ thể, trước tiên nó sẽ kiểm tra xem dữ liệu có trong bộ nhớ đệm của bộ nhớ hay không. Nếu có, dữ liệu được trả lại cho client như trong Hình 6-20.
 
 ![](./assets/read1.png)
 
-Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất từ đĩa thay thế. Chúng ta cần một cách hiệu quả để tìm ra SSTable nào chứa khóa. Bộ lọc Bloom [10] thường được sử dụng để giải quyết vấn đề này.
+Nếu dữ liệu không có trong bộ nhớ, nó sẽ được truy xuất từ ổ đĩa. Chúng ta cần một cách hiệu quả để tìm ra SSTable nào chứa khóa. Bộ lọc Bloom [10] thường được sử dụng để giải quyết vấn đề này.
 Đường dẫn đọc được thể hiện trong Hình 6-21 khi dữ liệu không có trong bộ nhớ.
 
 ![](./assets/read2.png)
@@ -319,7 +322,7 @@ Chương này bao gồm nhiều khái niệm và kỹ thuật. Để làm mới 
 | Phân vùng tập dữ liệu | Băm nhất quán |
 | Khả năng mở rộng tăng dần | Băm nhất quán |
 | Tính bất đồng nhất | Băm nhất quán |
-| Điều chính tính nhất quán | Đồng thuận tối thiểu |
+| Điều chính tính nhất quán | Số lượng đồng thuận tối thiểu (quorum consensus) |
 | Xử lý failure tạm thời | Sloppy quorum và hinted handoff |
 | Xử lý failure vĩnh viễn | Cây markle |
 | Xử lý sự cố trung tâm dữ liệu | Sao chép trên nhiều trung tâm dữ liệu |
